@@ -6,6 +6,7 @@ from internet, go internet
 现已闲散度日近4个月
 说实话，有点慌乱了
 我以真心待Java，还望Java不负我
+---
 no java web work experience, study as a fresh in java
 stay in home for 4 month without job
 to be frank, i have a little panicked
