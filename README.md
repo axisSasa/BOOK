@@ -10,6 +10,6 @@ from internet, go internet
 
 no java web work experience, study as a fresh in java
 stay in home for 4 month without job
-to be frank, i have a little panicked
-i hope hava a good end if i become a java engineer
+to be frank, i am a little panicked
+i hope have a good end if i become a java engineer
 
