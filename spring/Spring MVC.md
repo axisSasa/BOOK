@@ -141,25 +141,25 @@
 #### 3.5. Spring MVC的请求流程
 
     第一步：发起请求到**前端控制器**(DispatcherServlet)
-
+    
     第二步：前端控制器请求**HandlerMapping**查找Handler可以根据xml配置、注解进行查找
-
+    
     第三步：处理器映射器HandlerMapping向前端控制器返回**Handler**
-
+    
     第四步：前端控制器调用**处理器适配器**去执行Handler
-
+    
     第五步：处理器适配器去执行Handler
-
+    
     第六步：Handler执行完成给适配器返回**ModelAndView**
-
+    
     第七步：处理器适配器向前端控制器返回ModelAndView。ModelAndView是springmvc框架的一个底层对象，包括 Model和view
-
+    
     第八步：前端控制器请求**视图解析器**去进行视图解析，根据逻辑视图名解析成真正的视图(jsp)
-
+    
     第九步：视图解析器向前端控制器**返回View**
-
+    
     第十步：前端控制器进行**视图渲染**。视图渲染将模型数据(在ModelAndView对象中)填充到request域
-
+    
     第十一步：前端控制器向用户响应结果
 
 ---
@@ -183,8 +183,6 @@
 
 ##### 3.7.1. 生成XML
 
-
-
 ---
 
 ##### 3.7.2. 生成JSON
@@ -207,13 +205,74 @@
 
 ---
 
-#### 3.8 处理文件上传
+#### 3.8.  处理文件上传&下载
+
+* 上传-使用CommonsMultipartResolver
+  * 配置
+    * CommonsMultipartResolver建立的bean的id必须为multipartResolver
+    * multipartResolver必须配置UTF-8编码，因为后台获取到的文件名编码默认是iso编码
+  * 前端`<input type="file" name="fileUpload">`
+  * 后台 `@RequestParam("fileUpload") MultipartFile[] files` 获取到上传的文件对象
+* 下载
+  * 下载分为项目内文件的下载和主机里文件系统中的下载【个人经验】
+    * 项目内，只能下载resources下的文件，其他目录下的需获取绝对路径
+    * 文件系统的文件需给绝对路径
+  * 文件名需改为iso-8859-1编码，防止文件名因编码问题变下划线
+  * 即：设置Content-disposition的filename时使用`new String(file.getName().getBytes(),"iso-8859-1") `
+  * 实质：
+    * header中只支持ASCII所以我们传输的文件名必须是ASCII当文件名为中文时必须要将该中文转换成ASCII
+    * 转换方式
+      * 将中文文件名用ISO-8859-1进行重新编码
+      * 对中文文件名使用url编码
+      * filename*=charset'lang'value；charset则是给浏览器指明以什么编码方式来还原中文文件名
+  * Content-disposition
+    * 是 MIME 协议的扩展，MIME 协议指示 MIME 用户代理如何显示附加的文件。
+    * 当浏览器接收到头时，它会激活文件下载对话框，它的文件名框自动填充了头中指定的文件名
 
 ---
 
+#### 3.9. 配置静态资源
 
+* 重写configureDefaultServletHandling()方法
+  * 让默认的servlet处理
+  * 实质：交给其他servlet处理
+* 重写WebMvcConfigurerAdapter的addResourceHandlers()方法
+  * 更灵活，可以对访问地址做调整，可做更多处理
+  * 实质：将对静态资源的处理交给执行链，交给处理器
+  * 给资源添加版本号：
+    * 作用：方便静态资源管理
+    * 使用：`addResolver(new VersionResourceResolver().addFixedVersionStrategy("1.0.0", "/**"))`
+    * 效果：PathResourceResolver先查找有版本的文件，找不到去掉版本号再找
+  * gzip 压缩
+    * 作用：降低传输的数据量
+    * 使用：`addResolver(new GzipResourceResolver())`
+    * 效果：访问 style.css时，PathResourceResolver 查找 style.css，找到后则再次查找 style.css.gz，找到则返回
+    * 注意：**请求头中的 Content-Encoding 要包含 gzip**
+  * 建立缓存
+    * Spring MVC 会对资源进行较多的处理，每一次请求都做这些处理会降低服务器的性能
+    * 作用：缓存其它 Resource Resolver 查找到的资源
+    * 使用：`.requestChain(true)`
+    * 效果：请求先到达 CachingResourceResolver，尝试在缓存中查找，如果找到，则直接返回，如果找不到，则依次调用后面的 resolver，直到有一个 resolver 能够找到资源
+    * 实质：对资源的路径（或者说资源的抽象）进行了缓存，并非对内容进行缓存
+  * 配置Http 缓存
+    * 作用：避免用户重复获取资源
+    * 使用：`.setCacheControl(CacheControl.maxAge(10, TimeUnit.MINUTES)..cachePrivate())`
+    * 效果：
+      * 返回的头信息中会多两条信息Cache-Control:max-age=600, privateLast-Modified:
+      * 浏览器会将该信息连同资源储存起来，当再次请求该资源时，会取出 Last-Modified 并添加到在请求头 If-Modified-Since 中
+      * Spring MVC 在收到请求，发现存在 `If-Modified-Since`，会提取出来该值，并与资源的修改时间比较，如果发现没有改变，则仅仅返回状态码 304，无需传递资源内容
+
+---
+
+#### 3.10. 表单验证
+
+* 
+
+---
 
 ### 4. 常见面试题
+
+* 
 
 ### 5. 综述
 
@@ -224,3 +283,7 @@
 * [深入理解Spring MVC 思想](https://www.cnblogs.com/baiduligang/p/4247164.html)
 * [Spring MVC 和 Spring 总结](https://www.cnblogs.com/doudouxiaoye/p/5693399.html)
 * [SpringMVC中的视图和视图解析器](https://blog.csdn.net/xiangwanpeng/article/details/53144002)
+* [Why are there 2 ways to handle static resources in Spring (addResourceHandlers and the container’s Default Servlet”)?](https://stackoverflow.com/questions/34279705/why-are-there-2-ways-to-handle-static-resources-in-spring-addresourcehandlers-a)
+* [深入 Spring 系列之静态资源处理](https://blog.coding.net/blog/spring-static-resource-process)
+* [HTTP协议header中Content-Disposition中文文件名乱码](https://yq.aliyun.com/articles/38945)
+* 
