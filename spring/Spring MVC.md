@@ -266,7 +266,22 @@
 
 #### 3.10. 表单验证
 
-* 
+* 使用hibernate-validators，validation-api
+* 使用：在需要验证的object添加@Valid，在具体需要约束的属性定义上面添加约束
+* 结果：BindingResult包含验证结果，通过其hasErrors()方法判定
+* 常用属性约束注解：
+  * @Null   被注释的元素必须为 null    
+  * @NotNull    被注释的元素必须不为 null    
+  * @AssertTrue     被注释的元素值必须为 true    
+  * @Min (value= 1 ,message= "居住区值必须大于1。" )
+  * @DecimalMin(value)  被注释的元素必须是一个数字，其值必须大于等于value 
+  * @Size(max=, min=)   被注释的元素的大小必须在必须在min至max之间 
+  * org.hibernate.validator.constraints 定义的约束
+    * @NotBlank(message =)   验证字符串非null，且长度必须大于0 
+    * @Email  被注释的元素必须是电子邮箱地址    
+    * @Length(min=,max=)  被注释的字符串的大小必须在min至max之间 
+    * @NotEmpty   被注释的字符串的必须非空
+    * 
 
 ---
 
@@ -286,4 +301,4 @@
 * [Why are there 2 ways to handle static resources in Spring (addResourceHandlers and the container’s Default Servlet”)?](https://stackoverflow.com/questions/34279705/why-are-there-2-ways-to-handle-static-resources-in-spring-addresourcehandlers-a)
 * [深入 Spring 系列之静态资源处理](https://blog.coding.net/blog/spring-static-resource-process)
 * [HTTP协议header中Content-Disposition中文文件名乱码](https://yq.aliyun.com/articles/38945)
-* 
+* [hibernate验证注解validator用法](https://yq.aliyun.com/ziliao/354008)
