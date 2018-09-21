@@ -176,6 +176,9 @@
 - 展示数据库中的表：`show tables;`
 - 展示一个表的创建语句: `show create table 表名;`
 - 展示表中的字段：`show columns from 表名;`
+- 导出数据：`SELECT XXX -> INTO OUTFILE '/XXX.txt'`
+- 导出SQL格式数据：`mysqldump  -uroot -p --all-databases`
+- 导入数据：`mysql -u用户名    -p密码    <  要导入的数据库数据`
 
 ---
 
@@ -305,21 +308,96 @@
 
 ---
 
-##### 3.5.3. 联合查询
+##### 3.5.3. 连接查询
 
 * 外连接: 
   * left/right join
+  * left join以左表为主；right join 以右表为主
   * 以某张表为主,取出里面的所有记录, 然后每条记录与另外一张表进行连接，
   * 不管能不能匹配上条件,最终都会保留，
-  *  能匹配,正确保留; 不能匹配,其他表的字段都置空为NULL
+  * 能匹配,正确保留; 不能匹配,其他表的字段都置空为NULL
 * 内连接：
   * inner join
   * 从左表中取出每一条记录,去右表中与所有的记录进行匹配
   * 匹配必须是某个条件在左表中与右表中相同最终才会保留结果,否则不保留
+* 交叉连接：
+  * 左表 cross join 右表 / from 左表,右表
+  * 效果：形成两表的笛卡儿积
 
 ---
 
-#### 3.6. 应用架构
+##### 3.5.4. 联合查询
+
+* 效果：将多次查询(多条select语句), 在记录上进行拼接(字段不会增加）
+* 语法：多条select语句构成: 每一条select语句获取的字段数必须严格一致(但是字段类型无关)
+* 示例：`Select 语句1 Union [union选项] Select 语句2；`
+* union选项：
+  * All: 保留所有，不管重复
+  * Distinct：会去重；不给union选项，则默认为Distinct
+* 联合查询中使用 order by
+  * select查询语句必须被()括起来
+  * order by 必须配合limit使用
+
+---
+
+##### 3.5.5. 子查询
+
+* 查询是在某个查询结果之上进行的
+* 分类
+  * 按位置分：
+    * from 子查询
+    * where 子查询
+    * exists 子查询
+      * exists的条件就像一个bool条件，当能返回结果集则为true，不能返回结果集则为 false
+      * exists左边的查询每进行一次都需要 先执行exists且返回true
+  * 按查询结果分：
+    * 标量子查询：子查询结果为1行1列
+    * 列子查询：1列多行
+    * 行子查询：1行多列
+    * 表子查询：多行多列
+
+---
+
+#### 3.6. 函数
+
+##### 3.6.1.  数字函数
+
+* ABS(X):返回X的绝对值 
+* MOD(N,M)或%:返回N被M除的余数
+* FLOOR(X):返回不大于X的最大整数值
+* CEILING(X):返回不小于X的最小整数值
+* ROUND(X) :返回参数X的四舍五入的一个整数
+
+---
+
+##### 3.6.2. 字符串函数
+
+* ASCII(str):返回字符串str的最左面字符的ASCII代码值。如果str是空字符串，返回0。如果str是NULL，返回NULL
+* CONCAT(str1,str2,...):返回来自于参数连结的字符串。如果任何参数是NULL，返回NULL
+* LENGTH(str):返回字符串str的长度
+* LOCATE(substr,str):返回子串substr在字符串str第一个出现的位置，如果substr不是在str里面，返回0
+* LEFT(str,len):返回字符串str的最左面len个字符
+* SUBSTRING(str,pos):从字符串str的起始位置pos返回一个子串
+* TRIM(str):返回字符串str，删除指定的前缀或后缀，默认删除空格`TRIM(BOTH 'x' FROM 'xxxbarxxx'); `
+* LTRIM(str):返回删除了其前置空格字符的字符串str
+* REPLACE(str,from_str,to_str):返回字符串str，其字符串from_str的所有出现由字符串to_str代替
+* REVERSE(str):返回颠倒字符顺序的字符串str
+* INSERT(str,pos,len,newstr):返回字符串str，在位置pos起始的子串且len个字符长的子串由字符串newstr代替
+
+---
+
+##### 3.6.3. 日期函数
+
+* DAYOFWEEK(date):返回日期date的星期索引(1=星期天，2=星期一, …7=星期六)
+* WEEKDAY(date):返回date的星期索引(0=星期一，1=星期二, ……6= 星期天)
+* DAYOFMONTH(date):返回date的月份中的日期，在1到31范围内
+* DAYNAME(date):返回date的星期名字
+* DATE_ADD(date,INTERVAL expr type) ,进行日期增加的操作，可以精确到秒
+* NOW():以‘YYYY-MM-DD HH:MM:SS’或YYYYMMDDHHMMSS格式返回当前的日期和时间
+
+---
+
+#### 3.7. 应用架构
 
 - 单点（Single），适合小规模应用
 - 复制（Replication），适合中小规：模应用 
@@ -339,21 +417,14 @@
 ### 6. 参考资料
 
 * [关系型数据库-百度百科](https://baike.baidu.com/item/%E5%85%B3%E7%B3%BB%E5%9E%8B%E6%95%B0%E6%8D%AE%E5%BA%93/8999831?fr=aladdin)
-
 * [数据库-百度百科](https://baike.baidu.com/item/%E6%95%B0%E6%8D%AE%E5%BA%93/103728)
-
 * [Mysql学习总结（54）——MySQL 集群常用的几种高可用架构方案](https://blog.csdn.net/u012562943/article/details/79031902)
-
 * [acid-百度百科](https://baike.baidu.com/item/acid/10738?fr=aladdin)
-
 * [MySQL学习笔记(五)：MySQL表级锁和行级锁](https://www.cnblogs.com/zhanht/p/5431273.html)
-
 * [浅谈 DML、DDL、DCL的区别](https://www.cnblogs.com/dato/p/7049343.html)
-
 * [21分钟 MySQL 入门教程](https://www.cnblogs.com/webnote/p/5753996.html)
-
 * [Mysql中timestamp用法详解](https://www.cnblogs.com/givemelove/p/8251185.html)
-
 * [MYSQL中数据类型介绍](https://www.cnblogs.com/-xlp/p/8617760.html)
-
 * [mysql having和where的区别](https://www.cnblogs.com/lixiuyuan999/p/6370454.html)
+* [MySQL数据高级查询之连接查询、联合查询、子查询](https://blog.csdn.net/u011277123/article/details/54863371/)
+* [MySql常用函数大全讲解](https://blog.csdn.net/sinat_38899493/article/details/78710482)
