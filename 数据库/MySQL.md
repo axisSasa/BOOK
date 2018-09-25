@@ -39,10 +39,13 @@
 
 ##### 3.1.1. 常见的存储引擎
 
-- MyISAM，MySQL 5.0 之前的默认数据库引擎，高的插入，查询速度，不支持事务
+- MyISAM
+  - MySQL 5.0 之前的默认数据库引擎，高的插入，查询速度，不支持事务
+  - 支持 B-tree、Full-text 等索引，不支持 Hash 索引；
 - BDB, 支持Commit 和Rollback 等事务特性
 - CSV, 逻辑上由逗号分割数据的存储引擎,不支持索引
--  InnoDB
+- InnoDB
+  - 支持 B-tree、Full-text 等索引，不支持 Hash 索引；
 
 ---
 
@@ -694,14 +697,118 @@
 
 ---
 
-#### 3.10. 索引
+#### 3.11. 索引
+
+* 作用：能够为数据的查询提供快捷的存取路径，减少磁盘I/O，提高检索效率
+  * 使用索引：
+    * 读入索引表，通过索引表【B+树，查询事时间复杂度为O(logn)】直接找到所需数据的物理地址，并把数据读入数据缓冲区
+    * 能一次定位到特定值的行数，减少了遍历的行数
+  * 不使用索引：
+    * 直接去读表数据存放的磁盘块，读到数据缓冲区中再查找需要的数据
+    * 且MySQL必须从第一条记录开始读完整个表，直到找出相关的行，表越大，查询数据所花费的时间就越多
+* 缺点：降低对表的更新速度，占用磁盘空间：因为更新表时，还要额外保存索引文件
+* 索引组成：索引值及记录相应物理地址的ROWID两个部分构成，并按照索引值有序排列，ROWID可以快速定位到数据库表符合条件的记录
+* 实质：是一种数据结构
+* 使用原则：
+  * 适用数据较多，更新相对查询不频繁的情况；
+  * 符合最左前缀匹配原则
+  * 使用索引可以乱序
+  * 索引列不能参与计算，参加计算会增加查询成本
 
 ---
 
-#### 3.11. 应用架构
+##### 3.11.1. 分类
+
+* 单列索引 &  组合索引
+  * 单列索引：一个索引只包含单个列；一个表可以有多个单列索引
+  * 组合索引/复合索引/联合索引：一个索引包含多个列
+    * 最左前缀匹配原则：必须按照从左到右的顺序匹配
+      * 一直向右匹配直到遇到范围查询(>、<、between、like)就停止匹配
+      * where子句里面 顺序可以任意调整
+    * `alter table 表名 add key abc(a,b,c);`建立组合索引为例说明
+      * `select语句 where a = 1 and c = 1; ` key_len只会算a的字节数
+      * `select语句 where a = 1 and b = 1; ` key_len会算ab
+      * `select语句 where a = 1 and b = 1 and c = 1; ` key_len会算abc
+      * `select语句 where b = 1  ` key_len会算abc，未使用索引
+      * `select语句 where c = 1; ` key_len会算abc
+      * 注意：若字段为null，需要1个字节的额外空间
+* 唯一索引
+  * 唯一索引是相对正常建立的普通索引来说的
+  * 特点：
+    * 索引列的值必须唯一，但允许有空值
+    * 如果是组合索引，则列值的组合必须唯一
+* 主键索引
+  * 是一种唯一性索引，必须指定为“PRIMARY KEY”，不允许有空值，且每个表只能有一个主键
+* 全文索引
+  * 用于搜索很长一篇文章的时候
+* 空间索引
+
+---
+
+##### 3.11.2. 创建索引
+
+- 直接创建：
+  - 普通索引：`CREATE INDEX 索引名 ON 表名(列名(length)); `
+  - 唯一索引：`CREATE UNIQUE INDEX 索引名 ON 表名(列名(length)); `
+    - length：如果列类型是BLOB和TEXT类型，必须指定 length
+- 修改表结构添加索引：
+  - 普通索引：`ALTER table 表名 ADD INDEX 索引名(列名)`
+  - 唯一索引：`ALTER table 表名 ADD UNIQUE [index] 索引名(列名)`
+  - 主键索引：`ALTER TABLE 表名 ADD PRIMARY KEY (列名);`
+- 创建表时创建索引：
+  - 普通索引：`CREATE TABLE 表名( XXX  INDEX [索引名] (列名(length))  );`
+  - 唯一索引：`CREATE TABLE 表名( XXX  UNIQUE INDEX [索引名] (列名(length))  );` 
+  - 主键索引：`CREATE TABLE 表名( XXX  PRIMARY KEY (列名),）`
+
+---
+
+##### 3.11.3. 管理索引
+
+* 查看索引：`SHOW INDEX FROM 表名; 
+* 删除索引：
+  * 删除主键：` ALTER TABLE 表名 DROP PRIMARY KEY;`
+  * 删除一般索引：`ALTER TABLE testalter_tbl DROP INDEX 索引名;`
+* 查看一句select语句是否使用了索引：`EXPLAIN select语句;`
+  * 该操作返回一个表
+  * 表的key列：表明使用的索引
+  * 表的possible_keys列：MySQL在搜索数据记录时可以选用的各个索引
+  * 表的key_len列：表明使用的索引的长度【字节数】
+* 索引合并：
+  * 能命中比联合索引更多的可能
+
+---
+
+##### 3.11.4. 索引的存储类型
+
+* BTREE
+  * b+树，层数越多，数据量指数级增长(InnoDB默认使用)
+* HASH
+  * 查询单条快，范围查询慢
+* 实现：不同存储引擎对索引的实现方式是不同的
+  * MyISAM引擎
+    * 储存原理：使用带顺序访问指针的B+Tree作为索引结构，叶节点的data域存放的是数据记录的地址
+    * 查找原理：MyISAM中索引检索的算法为首先按照B+Tree搜索算法搜索索引，如果指定的Key存在，则取出其data域的值，然后以data域的值为地址，读取相应数据记录
+    * 归类：非聚集索引
+    * 存储形式：MyISAM索引文件和数据文件是分离的，索引文件仅保存数据记录的地址
+  * InnoDB
+    * 存储原理：表数据文件本身就是按B+Tree组织的一个索引结构，这棵树的叶节点data域保存了完整的数据记录；且这个索引的key是数据表的**主键**，因此InnoDB表数据文件本身就是主索引
+    * 查找原理：
+    * 归类：聚集索引
+      * 按主键的搜索十分高效，但是辅助索引搜索需要检索两遍索引
+    * 存储形式：数据文件本身就是索引文件
+    * 特点：
+      * 因为InnoDB的数据文件本身要按主键聚集，所以InnoDB要求表必须有主键（MyISAM可以没有），如果没有显式指定，则MySQL系统会自动选择一个可以唯一标识数据记录的列作为主键，如果不存在这种列，则MySQL自动为InnoDB表生成一个隐含字段作为主键，这个字段长度为6个字节，类型为长整形
+      * InnoDB的辅助索引data域存储相应记录主键的值而不是地址,即：以主键作为data域
+    * 解释优化：
+      * 不建议使用过长的字段作为主键，因为所有辅助索引都引用主索引，过长的主索引会令辅助索引变得过大
+      * 非单调的字段作为主键在InnoDB中不是个好主意，因为InnoDB数据文件本身是一颗B+Tree，非单调的主键会造成在插入新记录时数据文件为了维持B+Tree的特性而频繁的分裂调整，十分低效，而使用自增字段作为主键则是一个很好的选择
+
+---
+
+#### 3.12. 应用架构
 
 - 单点（Single），适合小规模应用
-- 复制（Replication），适合中小规：模应用 
+- 复制（Replication），适合中小规模应用 
 - 集群（Cluster），适合大规模应用 
   - 集群常用高可用架构方案
     - Mysql主从架构
@@ -732,3 +839,9 @@
 * [存储过程详解](https://www.cnblogs.com/xiangzhong/p/5038338.html)
 * [create event时 on completion preserve 什么意思](https://blog.csdn.net/sanxian_li/article/details/39230899)
 * [MySQL教程](https://www.yiibai.com/mysql/)
+* [MySQL 索引-菜鸟教程](https://www.runoob.com/mysql/mysql-index.html)
+* [MySQL(五) MySQL中的索引详讲](https://www.cnblogs.com/whgk/p/6179612.html)
+* [一道关于索引的使用和key_len的计算的面试题](https://blog.csdn.net/Oops_Qu/article/details/78241447?locationNum=7&fps=1)
+* [MySQL索引原理以及查询优化](https://www.cnblogs.com/bypp/p/7755307.html)
+* [MySQL索引背后的数据结构及算法原理](http://blog.codinglabs.org/articles/theory-of-mysql-index.html)
+
