@@ -397,7 +397,308 @@
 
 ---
 
-#### 3.7. 应用架构
+#### 3.7. 存储过程
+
+* 定义：存储过程Procedure是一组为了完成特定功能的SQL语句集合，经编译后存储在数据库中，用户通过指定存储过程的名称并给出参数来执行
+  * 包含逻辑控制语句和数据操纵语句
+  * 可以接受参数、输出参数、返回单个或多个结果集以及返回值
+* 优点：
+  * 能够实现较快的执行速度
+    * 存储过程是预编译的，在首次运行一个存储过程时，查询优化器对其进行分析、优化，并给出最终被存在系统表中的存储计划
+  * 减轻网络流量/减少查询次数
+* 劣势：
+  * 每个连接的内存使用量将会增加
+  * 相对复杂、难以调试、维护
+* DELIMITER
+  * 作用：修改分隔符
+  * 效果：`DELIMITER //` ：将分隔符;修改为//
+  * 存储过程会使用到;号，为了保证存储过程是按整体解释执行的，将分割符修改为存储过程不使用的符号
+* 创建存储过程:CREATE PROCEDURE XXX() BEGIN DML EBD
+  * CREATE PROCEDURE 存储过程的名称()
+  * `BEGIN`和`END`之间的部分称为存储过程的主体
+* 调用存储过程：
+  * CALL 存储过程的名称()；
+* 删除存储过程：
+  * DROP PROCEDURE IF EXISTS 存储过程的名称;
+* 展示存储过程创建语句：
+  * show create procedure seckill.execute_seckill\G
+* 带参数的存储过程：
+  * CREATE PROCEDURE XXX(in param1bigint, in param2 timestamp, out r_result int)
+  * in 说明为输入参数
+  * out 说明为返回值
+  * inout 既将值得副本传入，也可修改该值返回
+* 变量
+  * 声明变量
+    * DECLARE insert_count int DEFAULT 0;
+    * 声明变量insert_count类型为int 默认值为0
+  * 分配变量值
+    * SET insert_count = 10;
+  * 变量范围
+    * 在`BEGIN END`块内声明一个变量，超出END无效
+    * 以`@`符号开头的变量是会话变量。直到会话结束前它可用和可访问
+* 提交&事务：
+  * START TRANSACTION 后，只有当commit数据才会生效，ROLLBACK后就会回滚
+  * autocommit 为 0：只有当commit数据才会生效，ROLLBACK后就会回滚
+  * autocommit 为1 & 没有START TRANSACTION：调用ROLLBACK是没有用的。即便设置了SAVEPOINT
+    * SAVEPOINT：保存点，方便回退到指定地方
+
+---
+
+#### 3.8. 视图
+
+##### 3.8.1. 数据库视图
+
+* 定义：从一个或多个表导出的表；数据库中只存储视图的定义：有带连接得select查询语句组成
+* 特点：数据库视图是动态的，因为它与物理模式无关，只与定义的语句有关，当真实的表的数据发生变化时，视图也反映了这些数据的变化
+* 优点：
+  * 简化复杂查询，使复杂的查询易于理解和使用
+  * 提供额外的安全层，允许您创建只读视图，以将只读数据公开给特定用户
+  * 可以提供计算列
+* 缺点：
+  * 性能差：sql server必须把视图查询转化成对基本表的查询
+  * 对表的依赖：每当更改与其相关联的表的结构时，都必须更改视图
+
+---
+
+##### 3.8.2. MySQL视图
+
+* 实现算法
+
+  - 临时表算法：根据视图定义创建临时表，针对临时表执行查询操作
+    - 视图中包含无法再原表和视图记录建立一一映射的情况，使用临时表算法
+    - 无法被更新
+  - 合并算法：根据视图定义，将视图查询定义为一个组合查询
+
+* 存储形式
+
+  * 视图的版本：视图被更改，视图的副本会被复制到arc文件夹下，名字改为`视图名.from-0000X`
+
+* MySQL视图限制：
+
+  * 不能在视图上创建索引
+  *  5.7.7之前版本，不能再select语句的from子句中使用子查询来定义视图
+  * 删除 or 重命名 base table会导致视图无效，可使用check table检查视图是否有效
+
+---
+
+##### 3.8.3. 创建视图
+
+  * 代码：
+
+    ```sql
+    CREATE 
+       [ALGORITHM = {MERGE  | TEMPTABLE | UNDEFINED}]
+    VIEW [database_name].[view_name] 
+    AS
+    [SELECT  statement]
+    ```
+
+  * ALGORITHM参数解析
+
+    * 使用MERGE算法
+      * 效果：将输入的查询与的视图定义的查询语句组合成一个查询
+      * 限制：
+        * 如果SELECT语句包含集合函数 或 group by ,having,子查询，limit,union等，不能使用MERGE
+        * 如果select语句没有引用表，不能使用MERGE
+        * 如果不允许使用MERGE算法，则MySQL会更改算法为UNDEFINED
+    * 使用TEMPTABLE算法
+      * 效果：MySQL会根据视图定义创建一个临时表，查询基于临时表进行
+      * 限制：
+        * 效率相对较低，因为必须创建临时表来存储结果集并将数据从基表移动到临时表
+        * 视图不可更新
+    * UNDEFINED算法
+      * 效果：创建视图没有显示指定算法时，UNDEFINED是默认算法，UNDEFINED会在MERGE和TEMPTABLE中选一个，优先选择MERGE
+
+* 视图名解析
+
+  * 视图和表共享相同的命名空间，因此视图和表不能具有相同的名称，使用`show tables` or `SHOW FULL TABLES` 可查看到视图
+  * 视图的名称必须遵循表的命名规则
+
+* select语句解析
+
+  * select语句可以从数据库中存在的任何表或视图查询数据
+  * 限制：
+    * 可以在where语句中包含子查询，不能再from子句中包含子查询
+    * 不能引用任何变量
+
+---
+
+##### 3.8.4. 视图更新
+
+* 检查特定数据库中可更新视图
+
+  ```sql
+  SELECT 
+      table_name, is_updatable
+  FROM
+      information_schema.views
+  WHERE
+      table_schema = '数据库名';
+  ```
+
+* 具体更新语句同普通表更新无异
+
+* 视图更新，数据存入视图中【但实际视图可能不应该包含该数据】导致视图不一致问题
+
+  * 解决视图不一致问题：在创建或修改视图时使用`WITH CHECK OPTION`，这样在导致数据不一致的修改时，MySQL会报错
+  * `WITH CHECK OPTION`：会检查正在更改的每个行，使得符合视图的定义
+    * 检擦范围：默认使用`CASCADED`
+    * `WITH CASCADED CHECK OPTION`：MySQL会循环检查视图的规则以及底层视图的规则
+    * `WITH LOCAL CHECK OPTION`: 不会检查底层视图的规则
+
+---
+
+##### 3.8.5. 管理视图
+
+* 显示视图定义：
+  * 语法：`SHOW CREATE VIEW [database_name].[view_ name];`
+* 修改视图
+  * `ALTER VIEW` or `CREATE OR REPLACE VIEW`
+  * 具体语法与创建视图一致，将 CREATE VIEW 替换为对应语句即可
+* 删除视图
+  * 语法：`DROP VIEW [IF EXISTS][database_name].[view_name]`
+
+---
+
+#### 3.9. 触发器
+
+##### 3.9.1. SQL触发器
+
+* 定义：存储在数据库目录中的一组SQL语句。每当与表相关联的事件发生时，就会执行或触发SQL触发器
+* 实质：是一种特殊的存储过程
+* 与存储过程不同之处：在于触发器时被动自动调用，存储过程必须显示调用
+* 优点：提供了检查数据完整性的替代方法，可以捕获一定错误
+* 缺点：只能提供扩展验证，并且无法替换所有验证；增加数据库服务器的开销
+
+---
+
+##### 3.9.2. MySQL触发器
+
+* 定义：触发器是一组SQL语句，当对相关联的表上的数据进行更改时，会自动调用该语句
+  * 可在 insert delete update语句之前or之后调用
+  * 某些后台使用了这三种语句的语句也可触发触发器：replace语句后台调用insert
+* 命名约定：
+  * 形式：(BEFORE | AFTER)_tableName_(INSERT| UPDATE | DELETE)
+  * 同表不能重名
+* 存储：在数据目录中存储：/data/数据库名/,文件命名为tablename.TRG triggername.TRN
+  * triggername.TRN：包含触发器定义
+  * tablename.TRG：包含将触发器映射到相应的表
+* 限制：
+  * 不能使用准备语句：prapare,execute等
+  * 不能使用提交或回滚的语句：commit,rename,alter,create等
+
+---
+
+##### 3.9.3. 创建触发器
+
+* 语法：
+
+  ```sql
+  CREATE TRIGGER trigger_name trigger_time trigger_event
+   ON table_name
+   FOR EACH ROW
+   BEGIN
+   ...
+   OLD.列名
+   END;
+  ```
+
+* 语法解析：
+
+  * trigger_name 触发器名
+  * trigger_time 触发时机：after or before
+  * trigger_event 造成触发的事件：insert or update or delete
+  * table_name 触发器关联的表
+  * 触发器的主体中，使用`OLD`关键字来访问受触发器影响的行
+
+---
+
+##### 3.9.4. 管理触发器
+
+* 查看触发器：
+  * 查看所有触发器：`SHOW TRIGGERS;`
+  * 查看特定数据库的触发器: `SHOW TRIGGERS FROM 数据库名;`
+  * 查看特定表的触发器：SHOW TRIGGERS FROM 数据库名 WHERE `table` = '表名';
+* 删除触发器：
+  * 删除特定触发器：`DROP TRIGGER table_name.trigger_name;`
+* 修改触发器: 必须首先删除它并使用新的代码重新创建
+
+---
+
+#### 3.10. 事件
+
+* 定义：一个包含SQL语句的命名对象
+* 实质：基于预定义的时间表运行的任务，类似于UNIX中的cron作业或Windows中的任务调度程序
+
+---
+
+##### 3.10.1. 事件调度程序线程
+
+* 作用：执行所有调度的事件
+* 开启：`SET GLOBAL event_scheduler = ON;`
+* 禁用并停止： `SET GLOBAL event_scheduler = OFF;`
+
+---
+
+##### 3.10.2. 创建事件
+
+* 语法
+
+  ```sql
+  CREATE EVENT [IF NOT EXIST]  event_name
+  ON SCHEDULE schedule
+  DO
+  event_body
+  ```
+
+* 语法解析：
+
+  * event_name：事件名，在数据库模中必须是唯一的
+  * schedule：
+    * 事件是一次性事件，则使用语法：`AT timestamp [+ INTERVAL]`
+    * 事件是循环事件，则使用`EVERY`子句：`EVERY interval STARTS timestamp [+INTERVAL] ENDS timestamp [+INTERVAL]`
+  * event_body: 若有符合语句依然要放在BEGIN END中
+
+---
+
+##### 3.10.3. 事件管理
+
+* 查看事件：`SHOW EVENTS FROM 数据库名;`
+
+* 修改事件：
+
+  * 语法：
+
+    ```sql
+    ALTER EVENT event_name
+    ON SCHEDULE schedule
+    ON COMPLETION [NOT] PRESERVE
+    RENAME TO new_event_name
+    ENABLE | DISABLE
+    DO
+      event_body
+    ```
+
+  * 语法解析：
+
+    * on completion preserve 的时候,当event到期了,event会被disable,但是该event还是会存在
+    * on completion not preserve的时候,当event到期的时候,该event会被自动删除掉
+
+* 禁用事件：`alter event 事件名 disable;`
+
+* 启用事件：`alter event 事件名 enable;`
+
+* 重命名事件：`alter event 事件名 RENAME TO 新事件名`
+
+* 将事件移动到其他数据库：`alter event 原数据库.事件名 RENAME TO 新数据库.事件名`
+
+---
+
+#### 3.10. 索引
+
+---
+
+#### 3.11. 应用架构
 
 - 单点（Single），适合小规模应用
 - 复制（Replication），适合中小规：模应用 
@@ -428,3 +729,6 @@
 * [mysql having和where的区别](https://www.cnblogs.com/lixiuyuan999/p/6370454.html)
 * [MySQL数据高级查询之连接查询、联合查询、子查询](https://blog.csdn.net/u011277123/article/details/54863371/)
 * [MySql常用函数大全讲解](https://blog.csdn.net/sinat_38899493/article/details/78710482)
+* [存储过程详解](https://www.cnblogs.com/xiangzhong/p/5038338.html)
+* [create event时 on completion preserve 什么意思](https://blog.csdn.net/sanxian_li/article/details/39230899)
+* [MySQL教程](https://www.yiibai.com/mysql/)
