@@ -714,6 +714,7 @@
   * 符合最左前缀匹配原则
   * 使用索引可以乱序
   * 索引列不能参与计算，参加计算会增加查询成本
+  * 索引选择性应较高
 
 ---
 
@@ -759,6 +760,12 @@
   - 普通索引：`CREATE TABLE 表名( XXX  INDEX [索引名] (列名(length))  );`
   - 唯一索引：`CREATE TABLE 表名( XXX  UNIQUE INDEX [索引名] (列名(length))  );` 
   - 主键索引：`CREATE TABLE 表名( XXX  PRIMARY KEY (列名),）`
+- 创建前缀索引
+  - 选择性高但索引太长，则可用前缀索引平衡选择性和索引大小
+  - 查看选择性：
+    - `SELECT count(DISTINCT(concat(列名1, 列名2)))/count(*) AS Selectivity FROM 数据库名.表名`
+  - 创建基于列名1 和列名2前4个字符的前缀索引：
+    - ALTER TABLE 数据库名.表名 ADD INDEX `索引名` (列名1, 列名2(4));
 
 ---
 
