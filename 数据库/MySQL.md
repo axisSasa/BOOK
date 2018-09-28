@@ -825,6 +825,53 @@
 
 ---
 
+#### 3.13.  事务
+
+* 定义：
+  * 一个最小的不可再分的工作单元；通常一个事务对应一个完整的业务
+  * 事务只和DML语句有关，或者说DML语句才有事务
+* 事务并发的问题：
+  * 脏读：事务A的数据未提交，事务B能读取A未提交的数据，事务A是可能回滚的，所以称事务B读到的数据就是脏数据
+  * 不可重复读：事务A多次读取同一数据，事务B在事务A多次读取过程中对数据坐了更新并提交，导致事务A多次读取的**数据不一致**
+  * 幻读：一个事务内，多次查询中数据**条数不一致 **
+    * 解决方式：读写数据都锁表
+* 四大特征：ACID
+  * I - isolation 隔离性 的4个级别【由低到高】
+    * 读未提交：read uncommitted
+      * 涉及并发问题： 脏读；不可重复读；幻读
+    * 读已提交：read committed
+      * 涉及并发问题：不可重复读；幻读
+      * 实践：是Oracle默认事务隔离级别
+    * 可重复读：repeatable read
+      * 涉及并发问题：幻读
+      * 实践：是mysql默认事务隔离级别；
+      * PS: Mysql InnoDB的可重复读并不保证避免幻读，需要应用使用加锁读来保证
+    * 串行化：serializable
+      * 涉及并发问题：事务串行执行，无并发问题
+  * 隔离级别的作用范围
+    * GLOBAL：对所有的会话有效 
+    * SESSION：对当前的会话有效 
+  * 管理隔离级别
+    * 注意：8.0MySQL移除了tx_isolation,所以必须使用transaction_isolation
+    * 设置 `SET XXXtransaction_isolation = '隔离级别';`
+    * 查看：` select @@transaction_isolation;`
+
+---
+
+#### 3.14. 预处理
+
+* 定义：先提交sql语句到mysql服务端，执行预编译，客户端执行sql语句时，再上传输入参数
+* 工作原理：
+  * 创建 SQL 语句模板并发送到数据库，预留的值使用参数 "?" 标记 
+  * 数据库解析，编译，对SQL语句模板执行查询优化，并保存起来
+  * 将应用绑定的值传递给参数（"?" 标记），数据库执行语句
+* 优点：
+  * 执行效率相对于一般的sql执行操作高,因为第二次执行只需要发送查询的参数，而不是整个语句
+  * 防止sql注入，因为预处理将sql语句与数据分开发送
+* 语法：
+  * 创建：`prepare 预处理名称 from 'sql语句';`
+  * 执行：`execute 预处理名称 [ using @变量名 [, @变量名1 ] ...];`
+
 ### 4. 常见面试题
 
 ### 5. 综述
@@ -851,4 +898,8 @@
 * [一道关于索引的使用和key_len的计算的面试题](https://blog.csdn.net/Oops_Qu/article/details/78241447?locationNum=7&fps=1)
 * [MySQL索引原理以及查询优化](https://www.cnblogs.com/bypp/p/7755307.html)
 * [MySQL索引背后的数据结构及算法原理](http://blog.codinglabs.org/articles/theory-of-mysql-index.html)
+* [MySQL——事务(Transaction)详解](https://blog.csdn.net/w_linux/article/details/79666086)
+* [Mysql的四种事务隔离级别](https://www.cnblogs.com/huanongying/p/7021555.html)
+* [轻松理解MYSQL MVCC 实现机制](https://blog.csdn.net/whoamiyang/article/details/51901888)
+* [Mysql预处理和事务](https://www.cnblogs.com/onlyzc/p/8417032.html)
 
