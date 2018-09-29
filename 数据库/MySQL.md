@@ -915,22 +915,32 @@
 
 #### 3.16. 数据库5大约束
 
-* 外键约束（完整性约束）
-  * 作用：保持数据完整性、一致性
-  * 涉及表： 父表和子表  ； 子表中的数据要依赖于父表；
-  * 具体约束：外键约束是加在子表中； 父表中得先有这个数据，子表才能使用
-  * 使用：foreign key(子表外键列名) references  父表名(父表主键列名)
-  * 具体效果：
-    * 涉及事件：on delete和on update
-    * 阻止执行/RESTRICT
-      * 子表新插入行的外键值不在父表的主键值中
-      * 子表修改外键值不在父表的主键值中
-      * 父表删除行，但该行的主键值在子表中
-      * 父表修改行，但该行的主键值在子表中
-    * 级联执行/CASCADE
-      * 父表删除行，同时删除子表相关行
-      * 父表修改行，同时修改子表相关行
-    * 使用示例`foreign key(id) references outTable(id) on delete cascade on update cascade`
+##### 3.16.1. 外键约束（完整性约束）
+
+* 作用：保持数据完整性、一致性
+* 涉及表： 父表和子表  ； 子表中的数据要依赖于父表；
+* 具体约束：外键约束是加在子表中； 父表中得先有这个数据，子表才能使用
+* 使用：foreign key(子表外键列名) references  父表名(父表主键列名)
+* 具体效果：
+  * 涉及事件：on delete和on update
+  * 阻止执行/RESTRICT
+    * 子表新插入行的外键值不在父表的主键值中
+    * 子表修改外键值不在父表的主键值中
+    * 父表删除行，但该行的主键值在子表中
+    * 父表修改行，但该行的主键值在子表中
+  * 级联执行/CASCADE
+    * 父表删除行，同时删除子表相关行
+    * 父表修改行，同时修改子表相关行
+  * 使用示例`foreign key(id) references outTable(id) on delete cascade on update cascade`
+
+---
+
+##### 3.16.2. 其他约束
+
+* 非空约束（Not Null Counstraint）: 设置非空约束，该字段不能为空
+* 默认约束 (Default Counstraint) 该数据的默认值
+* 唯一约束 （Unique Counstraint）唯一性，可以空，但只能有一个；
+* 主键约束（Primay Key Coustraint） 唯一性，非空性；
 
 ### 4. 常见面试题
 
